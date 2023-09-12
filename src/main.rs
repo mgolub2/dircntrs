@@ -11,21 +11,33 @@ struct Opts {
 
 fn count_dir(dir: &PathBuf) -> u64 {
     let mut count = 0;
-    let mut handles = vec![];    
-    for entry in std::fs::read_dir(dir).unwrap() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if path.is_file() {
-            count += 1;
+    let mut handles = vec![];  
+    let dir_entry = std::fs::read_dir(dir);  
+    match dir_entry {
+        Err(_) => return 0,
+        Ok(dir) => {
+            for entry in dir {
+                match entry {
+                    Err(_) => continue,
+                    Ok(entry) => {
+                        let path = entry.path();
+                        if path.is_file() {
+                            count += 1;
+                        }
+                        else if path.is_dir() {
+                            handles.push(std::thread::spawn(move || {
+                                count_dir(&path)
+                            }));
+                        }
+                    }
+                };
+            }
         }
-        else if path.is_dir() {
-            handles.push(std::thread::spawn(move || {
-                count_dir(&path)
-            }));
-        }
+        
     }
+    
     for handle in handles {
-        count += handle.join().unwrap();
+        count += handle.join().unwrap_or_default();
     }
     count
 }
